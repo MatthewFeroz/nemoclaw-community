@@ -10,7 +10,7 @@
 # Removal also does not terminate already-open streams; follow NVIDIA's
 # lifecycle instructions when immediate termination matters.
 #
-# This recipe does not create or destroy the sandbox, and leaves the Concur
+# This recipe does not create or destroy the sandbox, and leaves the connector's
 # application credentials in Agent Handler intact.
 
 set -euo pipefail

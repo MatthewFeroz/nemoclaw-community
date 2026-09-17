@@ -7,8 +7,9 @@
 # and the tools Agent Handler advertises to this sandbox.
 #
 # Tool discovery sends `initialize` and `tools/list`. It does NOT execute a
-# Concur business tool, so a successful discovery is not evidence that the
-# linked Concur authorization works. scripts/verify.sh establishes that.
+# business tool on the connected system, so a successful discovery is not
+# evidence that the linked authorization works. scripts/verify.sh establishes
+# that.
 #
 # Read-only: changes nothing.
 

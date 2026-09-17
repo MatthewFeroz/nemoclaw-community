@@ -16,9 +16,10 @@
 # `approve_report` all it likes; if the pack does not contain that tool, Agent
 # Handler never advertises it and refuses the call before any Workday request.
 #
-# Cases 1-3 need only the scoped key, so they run without a linked Concur
-# account. Case 4 needs live Concur authorization and is skipped (not failed)
-# when the credential is not connected. Case 5 runs only after you revoke.
+# Cases 1-3 need only the scoped key, so they run without a linked account on
+# the connected system. Case 4 needs live authorization there and is skipped
+# (not failed) when the credential is not connected. Case 5 runs only after you
+# revoke the key.
 #
 # Section B drives a real agent turn so the sandbox path is exercised as the
 # agent would. Model behavior is non-deterministic, so an agent turn is never
@@ -112,7 +113,7 @@ fi
 # Case 3 — calling the excluded tool is refused by Agent Handler. Runs even
 # when case 2 passes: absence from the catalog and refusal on call are
 # different properties, and a client can always name a tool directly.
-# An error alone is NOT a pass: a missing Concur credential also errors. Only an
+# An error alone is NOT a pass: a missing connector credential also errors. Only an
 # authorization refusal proves the boundary. `reauth_required` means the call
 # died on the credential before authorization was decided — inconclusive.
 CALL="$(mcp_call "$MCP_URL" "$SID" tools/call "{\"name\":\"$EXCLUDED_TOOL\",\"arguments\":{}}")"
@@ -124,7 +125,7 @@ case "$VERDICT:$REASON" in
   *:permission_denied|*:forbidden|*:unauthorized|*:tool_not_found)
     ok "case 3: '$EXCLUDED_TOOL' refused at the authorization boundary ($REASON)" ;;
   *:reauth_required)
-    skip "case 3: inconclusive — the call failed on the missing Concur credential, not on authorization" ;;
+    skip "case 3: inconclusive — the call failed on the missing $SYSTEM_NAME credential, not on authorization" ;;
   *)
     skip "case 3: inconclusive — refused with an unrecognized reason (${REASON:-$VERDICT})" ;;
 esac
