@@ -24,8 +24,10 @@ named role bounds what it can do there. It was contributed by
 
 ## Screenshot
 
-Terminal evidence from `scripts/verify.sh` against a live Workday
-implementation tenant:
+![Terminal output of scripts/verify.sh showing seven passing checks: the reader tool advertised and returning live data, the payment tool neither advertised nor accepted, and the runtime key unable to create a Tool Pack or address an unbound one](docs/verify-run.png)
+
+`scripts/verify.sh` run against a live Workday implementation tenant. Identifiers
+are replaced with placeholders. The same output as searchable text:
 
 ```text
 == Section A: authorization boundary (Agent Handler, scoped key) ==
@@ -38,12 +40,20 @@ Advertised tools: 7
   PASS  case 4: 'workday__list_workers' returned a result over MCP
   PASS  case 4b: the agent completed a read through the sandbox
 
-passed=5 failed=0 skipped=1
+== Section D: key scope ==
+  PASS  case 6: the runtime key cannot create a Tool Pack (HTTP 403)
+  PASS  case 7: the key cannot address an unbound Tool Pack
+
+passed=7 failed=0 skipped=1
 ```
 
 Notice case 3. The refusal is `tool_not_found` from the Tool Pack catalog, not a
 credential error and not a refusal the model composed. The capability does not
 exist for this role.
+
+Cases 6 and 7 close the obvious way around that boundary. A key that could
+create its own Tool Pack, or address a pack it was not issued for, would make
+the narrow pack decorative.
 
 ## At A Glance
 
@@ -102,10 +112,13 @@ reason the sandbox cannot widen its own access.
 | Key | Used by | Scope |
 | --- | --- | --- |
 | Management key | `scripts/setup-packs.sh`, from trusted administration | Creates Tool Packs |
-| Runtime key | `scripts/onboard.sh` | One Tool Pack and one Registered User |
+| Runtime key | `scripts/onboard.sh` | `runtime:all`, bound to one Tool Pack and one Registered User |
 
-Issue the runtime key with an expiry. Do not use a management key in the
-sandbox registration.
+Issue the runtime key with an expiry, bound to the reader pack and the intended
+Registered User. Do not use a management key in the sandbox registration: a key
+carrying `management:all` can create a wider Tool Pack for itself, which makes
+the narrow pack decorative. `verify.sh` cases 6 and 7 fail when the registered
+key carries management scope or is unbound.
 
 `scripts/onboard.sh` passes the runtime key through the child process
 environment, so it never enters a command argument or a shell history entry.
@@ -181,9 +194,16 @@ bash scripts/verify.sh
   PASS  case 3: 'workday__request_one_time_payment' refused at the authorization boundary (tool_not_found)
   PASS  case 4: 'workday__list_workers' returned a result over MCP
   PASS  case 4b: the agent completed a read through the sandbox
+  PASS  case 6: the runtime key cannot create a Tool Pack (HTTP 403)
+  PASS  case 7: the key cannot address an unbound Tool Pack
 
-passed=5 failed=0 skipped=1
+passed=7 failed=0 skipped=1
 ```
+
+Set `OTHER_TOOL_PACK_ID` to a pack the key is not bound to so case 7 runs rather
+than skipping. Case 5 needs an actual revocation; the Agent Handler API exposes
+no delete for access keys, so revoke in the dashboard and re-run with
+`EXPECT_REVOKED=1`.
 
 The script exits non-zero if any executed case misses its expected outcome.
 
@@ -205,8 +225,9 @@ No payment was issued, and no compensation data was retrieved.
 **This verifies:** the reader tool is advertised and returns live tenant data;
 the excluded tool is neither advertised nor accepted, and its refusal is an
 authorization decision rather than a credential failure; the credential resolves
-on the wire without entering the sandbox; and the agent completes a read through
-the sandbox using the registered inference route.
+on the wire without entering the sandbox; the agent completes a read through the
+sandbox using the registered inference route; and the runtime key can neither
+create a Tool Pack nor address a pack it was not issued for.
 
 **This does not verify:** record-level isolation inside Workday; resistance to
 every prompt-injection technique; prevention of data exfiltration through the

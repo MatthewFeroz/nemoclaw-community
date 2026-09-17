@@ -161,6 +161,34 @@ else
 fi
 
 echo
+echo "== Section D: key scope =="
+# The runtime key must not be able to widen its own access. These cases fail on
+# a management key, which is the point: a management key in the sandbox
+# registration would silently defeat the Tool Pack boundary above.
+
+# Case 6 — the key cannot perform management operations.
+ESC="$(curl -s --max-time 25 -o /dev/null -w '%{http_code}' -X POST "$AH_BASE_URL/api/v1/tool-packs/" \
+  -H "Authorization: Bearer $MERGE_AH_MCP_TOKEN" -H "Content-Type: application/json" \
+  --data '{"name":"escalation-probe","description":"must be refused","connectors":[{"slug":"workday","tool_names":["request_one_time_payment"]}]}' 2>/dev/null || true)"
+if [[ "$ESC" == "401" || "$ESC" == "403" ]]; then
+  ok "case 6: the runtime key cannot create a Tool Pack (HTTP $ESC)"
+else
+  bad "case 6: the runtime key reached Tool Pack creation (HTTP $ESC) — it carries management scope"
+fi
+
+# Case 7 — the key cannot address a Tool Pack it is not bound to.
+if [[ -n "${OTHER_TOOL_PACK_ID:-}" ]]; then
+  OTHER_URL="$AH_BASE_URL/api/v1/tool-packs/$OTHER_TOOL_PACK_ID/registered-users/$MERGE_AH_REGISTERED_USER_ID/mcp"
+  if mcp_session "$OTHER_URL" >/dev/null 2>&1; then
+    bad "case 7: the key opened a session on an unbound Tool Pack"
+  else
+    ok "case 7: the key cannot address an unbound Tool Pack"
+  fi
+else
+  skip "case 7: set OTHER_TOOL_PACK_ID to a pack this key is not bound to"
+fi
+
+echo
 echo "== Section C: key revocation =="
 # Only meaningful after you revoke the key in Agent Handler. Before revocation
 # a working session is the expected state, so this reports rather than fails.
@@ -171,7 +199,7 @@ if [[ "${EXPECT_REVOKED:-0}" == "1" ]]; then
     ok "case 5: the revoked key is refused"
   fi
 else
-  skip "case 5: set EXPECT_REVOKED=1 after revoking the key to assert refusal"
+  skip "case 5: revoke the key in the Agent Handler dashboard (the API exposes no delete), then re-run with EXPECT_REVOKED=1"
 fi
 
 echo
