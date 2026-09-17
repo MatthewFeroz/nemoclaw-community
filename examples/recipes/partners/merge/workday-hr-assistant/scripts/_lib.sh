@@ -9,7 +9,7 @@ EXAMPLE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 MCP_SERVER_NAME="${MCP_SERVER_NAME:-merge-workday}"
 AH_BASE_URL="${AH_BASE_URL:-https://ah-api.merge.dev}"
-NEMOCLAW_SANDBOX_NAME="${NEMOCLAW_SANDBOX_NAME:-workday-hr}"
+NEMOCLAW_SANDBOX_NAME="${NEMOCLAW_SANDBOX_NAME:-merge-hr}"
 
 # Auto-source .env if present. Idempotent, and re-sourced on every call so a
 # variable added to .env after a stale shell export is not missed.
