@@ -272,6 +272,13 @@ application credentials in Agent Handler intact.
 - `openclaw mcp probe` completes successfully but reports a policy denial when
   closing the MCP session, because the generated policy has no rule for the
   session-closing `DELETE`. Discovery and tool calls are unaffected.
+- Deleting an application credential for a connector detaches that connector
+  from every Tool Pack in the organization, including packs that referenced a
+  different credential. The packs survive with the connector removed, so a
+  previously passing registration begins advertising zero tools. Re-attach the
+  connector with a `PATCH` that carries each remaining connector's `tool_names`,
+  since the field replaces the connector list rather than merging into it.
+  Capture a pack before editing it.
 
 ## Third-party dependencies
 
