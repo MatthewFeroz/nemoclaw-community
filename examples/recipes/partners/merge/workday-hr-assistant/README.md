@@ -286,6 +286,13 @@ application credentials in Agent Handler intact.
 - `openclaw mcp probe` completes successfully but reports a policy denial when
   closing the MCP session, because the generated policy has no rule for the
   session-closing `DELETE`. Discovery and tool calls are unaffected.
+- Changing an application credential's OAuth scopes is a replace, not an edit.
+  `PATCH` on the organization's default credential returns
+  `Global default credentials are read-only`, and `POST` for a connector that
+  already has a credential replaces the existing record, which then returns 404.
+  The replaced client secret cannot be read back, so capture both the client
+  identifier and secret before registering a replacement. `is_global_default` is
+  accepted and ignored on create and on update.
 - Deleting an application credential for a connector detaches that connector
   from every Tool Pack in the organization, including packs that referenced a
   different credential. The packs survive with the connector removed, so a

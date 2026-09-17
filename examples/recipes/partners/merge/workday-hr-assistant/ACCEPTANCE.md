@@ -34,17 +34,20 @@ a script cannot establish are listed separately.
 - [x] Confirm the runtime key cannot address a Tool Pack it is not bound to
       (case 7).
 - [x] Capture terminal evidence of a passing run with identifiers replaced.
+- [x] Narrow the Workday OAuth application credential to the four functional
+      areas the six tools need, so the token scope matches the Tool Pack.
 
 ## Outstanding
 
 - [ ] Revoke the runtime key and re-run with `EXPECT_REVOKED=1`. The Agent
       Handler API exposes `GET`, `HEAD`, and `OPTIONS` on access keys and no
       delete, so revocation is a dashboard action.
-- [ ] Narrow the Workday OAuth application credential to the four functional
-      areas the six tools need. The Tool Pack withholds compensation and payroll
-      tools, so the boundary holds, but the access token is broader than the
-      role. Changing it affects the organization-wide default credential and any
-      other integration that depends on it.
+- [ ] Re-authorize the Workday connection so the stored token is issued under
+      the narrowed credential. The registered application credential now scopes
+      to the four functional areas the six tools need, and reads continue to
+      succeed, but the stored authorization predates the change and was issued
+      to the previous client. Re-authorizing aligns the token with the role and
+      avoids a refresh against a client that no longer exists.
 - [ ] Repeat setup and teardown on a second host to confirm the documented path
       is reproducible.
 - [ ] Confirm example name, placement, and provenance with a maintainer.
