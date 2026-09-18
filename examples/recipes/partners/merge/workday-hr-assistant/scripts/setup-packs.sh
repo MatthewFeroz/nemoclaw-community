@@ -7,6 +7,7 @@
 # Use tool_names: alternative fields can be silently ignored by the API.
 # Requires a management key on the trusted host, never in the sandbox.
 
+set +x
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
@@ -14,7 +15,12 @@ source "$DIR/_lib.sh"
 
 command -v curl    >/dev/null || { echo "curl not in PATH" >&2; exit 1; }
 command -v python3 >/dev/null || { echo "python3 not in PATH" >&2; exit 1; }
-require_var MERGE_AH_ADMIN_KEY "an Agent Handler management key; the runtime key cannot create Tool Packs"
+# Discard inherited/exported values; keep the prompted key local to this shell.
+unset MERGE_AH_ADMIN_KEY
+printf 'Agent Handler MANAGEMENT key (input hidden), then press Enter: ' >&2
+read -rs MERGE_AH_ADMIN_KEY; echo >&2
+[[ -n "$MERGE_AH_ADMIN_KEY" ]] || { echo "error: no key entered" >&2; exit 1; }
+trap 'unset MERGE_AH_ADMIN_KEY' EXIT
 
 READER_TOOLS='["list_workers","get_worker","list_organizations","get_organization_workers","get_absence_balances","list_time_off_entries"]'
 

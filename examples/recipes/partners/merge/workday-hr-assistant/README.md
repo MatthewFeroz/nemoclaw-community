@@ -52,7 +52,7 @@ OpenClaw agent → OpenShell → Agent Handler → Workday
 | Tool Pack | Defines the reader role by exposing six Workday tools through an MCP endpoint. Agent Handler enforces the allowlist. |
 | Registered User | Selects the linked Workday authorization used for tool calls. |
 | Scoped runtime key | Permits runtime access to one Tool Pack and one Registered User. It cannot create or widen a pack. |
-| OpenShell | Holds the runtime key on the host, substitutes it at egress, and applies the generated endpoint policy. |
+| OpenShell boundary | Holds the runtime key on the host, substitutes it at egress, and applies the generated endpoint policy. |
 | OpenClaw | Discovers the permitted tools and calls them to answer the user's request. |
 
 The reader pack exposes `list_workers`, `get_worker`, `list_organizations`,
@@ -97,7 +97,7 @@ Workday connections. It does not pass that credential to the agent.
 
 ### 2. Define the reader role
 
-Set `MERGE_AH_ADMIN_KEY` in `.env`, then run:
+Run the setup script and enter the management key at its hidden prompt:
 
 ```bash
 bash scripts/setup-packs.sh
@@ -123,8 +123,13 @@ bash scripts/issue-runtime-key.sh
 
 Enter the management key at the hidden prompt. The script requests `runtime:all`
 bound to that pack and user, then writes `MERGE_AH_MCP_TOKEN` to `.env` without
-printing it. Set an expiry in the Agent Handler dashboard; the script does not
-set one. Remove `MERGE_AH_ADMIN_KEY` from `.env` after setup.
+printing it. The creation request sets `expires_in=3600`, so the key expires after
+one hour. Set `MERGE_AH_KEY_TTL_SECONDS` to another positive duration in seconds
+before issuance if needed. See [Merge's expiry guidance](https://docs.merge.dev/merge-agent-handler/secure/scoping-access-per-user).
+
+Neither setup script saves the management key. Key issuance also removes legacy
+`MERGE_AH_ADMIN_KEY` assignments from `.env` and `.env.bak`. When the runtime key
+expires, issue a replacement and rerun `onboard.sh`.
 
 **Result:** a runtime credential that can use the selected role and user but
 cannot create Tool Packs. Use the script because dashboard-created keys do not
