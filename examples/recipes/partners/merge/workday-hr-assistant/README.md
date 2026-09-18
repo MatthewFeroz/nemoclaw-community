@@ -24,6 +24,13 @@ named role bounds what it can do there. It was contributed by
 
 ## Screenshot
 
+![Formatted OpenClaw chat transcript showing the request, two tool activities, and five redacted worker names](docs/openclaw-chat.png)
+
+The operator's OpenClaw web-chat capture shows a worker-list request, tool search,
+a tool call, and five returned names. This image re-typesets that conversation
+with names redacted; it is not a native TUI screenshot. Tool-call details were
+collapsed in the source. [Accessible transcript](docs/openclaw-chat.txt).
+
 ![Sanitized live verification output on Brev: six passes, zero failures, and two separately verified skips](docs/verification-proof.png)
 
 This screenshot formats actual output captured on the second host after the

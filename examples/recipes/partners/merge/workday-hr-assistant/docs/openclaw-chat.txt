@@ -1,0 +1,20 @@
+OpenClaw web-chat transcript
+Source: operator-provided screenshot, September 18, 2026, 12:35 PM as displayed.
+This is a re-typeset transcript, not a native TUI screenshot.
+
+USER
+Use the merge-workday MCP server to list workers. Reply with the first five worker names only.
+
+ACTIVITY: 2 tools
+Tool Search: merge-workday MCP server list workers tool
+Tool Call: details collapsed in the source capture
+
+ASSISTANT
+[worker name redacted]
+[worker name redacted]
+[worker name redacted]
+[worker name redacted]
+[worker name redacted]
+
+Five names were visible in the source screenshot. Names are omitted from public artifacts.
+This conversation illustrates the read path. See verification-proof.txt and runtime-proof.txt for access-control evidence.
