@@ -65,7 +65,7 @@ the narrow pack decorative.
 | You will get | A sandboxed agent that reads Workday people data, with an executable check that its excluded tools stay refused |
 | Runs on | An existing NemoClaw host with a managed OpenClaw sandbox |
 | Requires | Managed remote MCP support, an Agent Handler management key and runtime key, a Workday tenant with an OAuth API client |
-| Verified on | NemoClaw v0.0.124 · OpenClaw 2026.7.1 · OpenShell 0.0.116 · macOS 15 on Apple Silicon with Docker Desktop · a Workday implementation tenant · an OpenAI-compatible inference endpoint |
+| Verified on | NemoClaw v0.0.124 · OpenClaw 2026.7.1 · OpenShell 0.0.116 · macOS 15 on Apple Silicon with Docker Desktop, and Ubuntu 22.04 on x86_64 with Docker 29.1.3 · a Workday implementation tenant · an OpenAI-compatible inference endpoint |
 | Evidence level | live end-to-end |
 | Support and maturity | Best-effort community support; see [SUPPORT.md](../../../../../SUPPORT.md) |
 | External access, data, and actions | Setup contacts Agent Handler and changes sandbox configuration. Reads return live Workday people data. Tool results reach the configured inference provider. Service charges may apply. |
@@ -166,9 +166,12 @@ credential; it authorizes account linking for whoever opens it.
 
 ### 4. Register the Tool Pack with the sandbox
 
-Set `MERGE_AH_MCP_TOKEN` and `MERGE_AH_REGISTERED_USER_ID` in `.env`, then:
+Set `MERGE_AH_REGISTERED_USER_ID` in `.env`, then issue the runtime key. The
+dashboard cannot bind a key to one Tool Pack and one Registered User, so create
+it on the API; the script records the value in `.env` without printing it:
 
 ```bash
+bash scripts/issue-runtime-key.sh
 bash scripts/onboard.sh
 bash scripts/status.sh
 ```

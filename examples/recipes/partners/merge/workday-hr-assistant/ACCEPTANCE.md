@@ -36,6 +36,11 @@ a script cannot establish are listed separately.
 - [x] Capture terminal evidence of a passing run with identifiers replaced.
 - [x] Narrow the Workday OAuth application credential to the four functional
       areas the six tools need, so the token scope matches the Tool Pack.
+- [x] Repeat setup on a second host, on a different operating system, processor
+      architecture, and inference provider from the first, and confirm the same
+      cases pass. Recorded on macOS 15 on Apple Silicon against an OpenAI-compatible
+      gateway, and on Ubuntu 22.04 on x86_64 against a directly configured
+      OpenAI-compatible provider.
 
 ## Outstanding
 
@@ -48,8 +53,9 @@ a script cannot establish are listed separately.
       succeed, but the stored authorization predates the change and was issued
       to the previous client. Re-authorizing aligns the token with the role and
       avoids a refresh against a client that no longer exists.
-- [ ] Repeat setup and teardown on a second host to confirm the documented path
-      is reproducible.
+- [ ] Run teardown on a second host. Setup is recorded on two hosts; teardown is
+      recorded only on the first, so the documented removal path is unconfirmed
+      on a host the example did not create.
 - [ ] Confirm example name, placement, and provenance with a maintainer.
 
 ## Evidence boundaries
