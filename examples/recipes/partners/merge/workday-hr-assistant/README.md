@@ -22,36 +22,6 @@ This recipe is for teams who need an agent to reach a system of record while a
 named role bounds what it can do there. It was contributed by
 [Merge](https://merge.dev).
 
-## Screenshot
-
-![Formatted OpenClaw chat transcript showing the request, two tool activities, and five redacted worker names](docs/openclaw-chat.png)
-
-The operator's OpenClaw web-chat capture shows a worker-list request, tool search,
-a tool call, and five returned names. This image re-typesets that conversation
-with names redacted; it is not a native TUI screenshot. Tool-call details were
-collapsed in the source. [Accessible transcript](docs/openclaw-chat.txt).
-
-![Sanitized live verification output on Brev: six passes, zero failures, and two separately verified skips](docs/verification-proof.png)
-
-This screenshot formats actual output captured on the second host after the
-verification fixes. Private identifiers and paths are redacted. The result is
-`passed=6 failed=0 skipped=2`. Case 3 rejects the payment tool with
-`tool_not_found`; case 7 rejects an unbound pack with an explicit scope-denial
-response. [Full captured output](docs/verification-proof.txt).
-
-![Live tool discovery, a successful Workday agent read in the transcript, and the earlier recorded revocation result](docs/runtime-proof.png)
-
-Discovery shows the six reader tools plus `authenticate_workday`. The inspected
-agent transcript pairs a Workday read with a successful tool result. The
-revocation panel is an excerpt recorded earlier in the same session, before key
-replacement: `passed=1 failed=0 skipped=0`, HTTP 403. It is not a new revocation
-run. [Searchable evidence](docs/runtime-proof.txt).
-
-These images contain formatted command captures, not unedited terminal windows.
-Tenant records, key values, private endpoints, and identifiers are omitted. The
-older [historical screenshot](docs/verify-run.png) predates the stricter checks
-and is not evidence for the current script.
-
 ## At A Glance
 
 | Question | Answer |
@@ -70,17 +40,6 @@ and is not evidence for the current script.
 | Confirm success | [Verification](#verification) |
 
 ## What this example does
-
-![Architecture showing the OpenClaw sandbox, OpenShell credential substitution, the Agent Handler reader Tool Pack, and Workday](docs/architecture.png)
-
-This is an architecture illustration, not execution evidence. OpenShell holds
-the Agent Handler runtime key; Agent Handler holds the Workday OAuth credential.
-The Tool Pack enforces tool availability. Permitted results can reach the
-configured inference provider and user.
-
-Created with Excalidraw+ MCP.
-[Download the editable Excalidraw scene](docs/architecture.excalidraw).
-
 
 Three components divide the work:
 

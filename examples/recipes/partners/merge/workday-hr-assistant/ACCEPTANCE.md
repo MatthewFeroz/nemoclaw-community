@@ -37,9 +37,8 @@ a script cannot establish are listed separately.
 - [x] Confirm the runtime key cannot address a Tool Pack it is not bound to
       (case 7).
 - [x] Capture terminal evidence of a passing run with identifiers replaced.
-      Current formatted screenshots and searchable captures are in `docs/`:
-      `verification-proof` and `runtime-proof`. The architecture illustration
-      is separate from execution evidence.
+      Results are recorded below. Presentation captures are linked from the PR
+      description and are excluded from the implementation files.
 - [x] Narrow the Workday OAuth application credential to the four functional
       areas the six tools need. Operator-completed reauthorization is recorded
       below; token grants were not independently introspected.
