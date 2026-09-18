@@ -201,14 +201,36 @@ fi
 # Case 7 — the key cannot address a Tool Pack it is not bound to.
 if [[ -n "${OTHER_TOOL_PACK_ID:-}" ]]; then
   OTHER_URL="$AH_BASE_URL/api/v1/tool-packs/$OTHER_TOOL_PACK_ID/registered-users/$MERGE_AH_REGISTERED_USER_ID/mcp"
-  if HTTP_STATUS="$(mcp_initialize_status "$OTHER_URL")"; then
+  DENIAL_BODY="$(mktemp)"
+  if HTTP_STATUS="$(mcp_initialize_status "$OTHER_URL" "$DENIAL_BODY")"; then
+    # Agent Handler hides out-of-scope resources behind a specific JSON-RPC 404.
+    # A generic missing-resource response is not evidence of authorization.
+    SCOPE_DENIAL="$(python3 - "$DENIAL_BODY" <<'PYCODE'
+import json, sys
+try:
+    text = open(sys.argv[1]).read().strip()
+    if text.startswith("data: "):
+        text = text[6:]
+    error = json.loads(text).get("error", {})
+    print("yes" if error.get("code") == -32601 and error.get("message") == "Resource not in API key scope." else "no")
+except (ValueError, AttributeError):
+    print("no")
+PYCODE
+)"
     case "$HTTP_STATUS" in
       401|403) ok "case 7: the key cannot address an unbound Tool Pack (HTTP $HTTP_STATUS)" ;;
+      404)
+        if [[ "$SCOPE_DENIAL" == "yes" ]]; then
+          ok "case 7: the key cannot address an unbound Tool Pack (HTTP 404, explicit scope denial)"
+        else
+          bad "case 7: HTTP 404 without an explicit scope denial"
+        fi ;;
       *) bad "case 7: expected authorization denial, got HTTP $HTTP_STATUS" ;;
     esac
   else
     bad "case 7: transport failure cannot establish Tool Pack isolation"
   fi
+  rm -f "$DENIAL_BODY"
 else
   skip "case 7: set OTHER_TOOL_PACK_ID to a pack this key is not bound to"
 fi

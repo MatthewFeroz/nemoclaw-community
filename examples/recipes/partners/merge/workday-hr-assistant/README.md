@@ -230,10 +230,14 @@ tools mean the Tool Pack is wider than this recipe describes.
 
 **Evidence level:** live end-to-end for the recorded integration runs. Current
 script checks were rerun on the second host after review fixes, with
-`passed=5 failed=0 skipped=3`. The direct read and payment-tool denial passed.
-The agent command completed but requires transcript review; cross-pack access
-and revocation were not exercised because the companion pack identifier was
-unset and the runtime key remains active.
+`passed=6 failed=0 skipped=2`. Cross-pack access was refused with an explicit
+scope-denial response. Revocation was verified separately before replacing the
+key: `passed=1 failed=0 skipped=0`, HTTP 403. The agent transcript confirmed a
+successful `workday__list_workers` call after key replacement. Second-host
+teardown and restoration also passed. The operator completed Workday
+reauthorization, confirmed connection success, and a subsequent live read
+succeeded. The token grants were not independently introspected. See
+[ACCEPTANCE.md](ACCEPTANCE.md).
 
 The verification script reads Workday data and sends tool results to the
 configured inference provider. Case 6 attempts to create an `escalation-probe`
@@ -247,7 +251,9 @@ bash scripts/verify.sh
 
 **Expected result:** with a linked account, an available sandbox, and an existing
 `OTHER_TOOL_PACK_ID` outside the runtime key binding. Authorization refusals may
-report HTTP 401 instead of 403.
+report HTTP 401 or 403. Agent Handler also returns HTTP 404 with JSON-RPC code
+`-32601` and message `Resource not in API key scope.` for a pack outside the key
+binding. The check accepts that exact response, not a generic 404.
 
 ```text
   PASS  case 1: 'workday__list_workers' is advertised to this role
@@ -256,7 +262,7 @@ report HTTP 401 instead of 403.
   PASS  case 4: 'workday__list_workers' returned a result over MCP
   SKIP  case 4b: agent turn completed; inspect its tool-call transcript to confirm a Workday read
   PASS  case 6: the runtime key cannot create a Tool Pack (HTTP 403)
-  PASS  case 7: the key cannot address an unbound Tool Pack (HTTP 403)
+  PASS  case 7: the key cannot address an unbound Tool Pack (HTTP 404, explicit scope denial)
 
 passed=6 failed=0 skipped=2
 ```
@@ -311,13 +317,13 @@ or address the other configured pack. `status.sh` reports managed credential
 resolution separately. Confirming an agent read through the sandbox requires
 manual inspection of its tool-call transcript.
 
-**This does not verify:** the complete advertised tool allowlist, which must be
-reviewed using `status.sh`; cross-Registered-User denial; record-level isolation
+**This does not verify:** cross-Registered-User denial; record-level isolation
 inside Workday; resistance to
-every prompt-injection technique; prevention of data exfiltration through the
-inference provider or other permitted destinations; or behavior after key
-revocation, which `verify.sh` reports only when `EXPECT_REVOKED=1` is set after
-an actual revocation.
+every prompt-injection technique; or prevention of data exfiltration through the
+inference provider or other permitted destinations. Revocation is a separate
+check with `EXPECT_REVOKED=1` after an actual revocation. Review the complete
+advertised allowlist with `status.sh`; the automated tool checks cover one
+allowed and one excluded business tool.
 
 ## Permissions and limitations
 

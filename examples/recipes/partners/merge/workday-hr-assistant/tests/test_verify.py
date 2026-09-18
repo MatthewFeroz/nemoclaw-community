@@ -19,6 +19,8 @@ if '-w' in a:
     if any(x.endswith('/api/v1/tool-packs/') for x in a):
         print('403', end='')
     else:
+        if a[a.index('-o') + 1] != '/dev/null':
+            Path(a[a.index('-o') + 1]).write_text(os.environ.get('MOCK_DENIAL_BODY', ''))
         print(os.environ.get('MOCK_HTTP', '403'), end='')
         sys.exit(int(os.environ.get('MOCK_CURL_EXIT', '0')))
 elif '-D' in a:
@@ -92,6 +94,15 @@ class VerificationTests(unittest.TestCase):
         result = self.run_verify(MOCK_HTTP='403')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn('PASS  case 7', result.stdout)
+
+    def test_cross_pack_explicit_scope_404_passes(self):
+        body = 'data: {"error":{"code":-32601,"message":"Resource not in API key scope."}}'
+        result = self.run_verify(MOCK_HTTP='404', MOCK_DENIAL_BODY=body)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('PASS  case 7', result.stdout)
+        result = self.run_verify(MOCK_HTTP='404', MOCK_DENIAL_BODY='{"error":{"code":-32601,"message":"Not found"}}')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('FAIL  case 7', result.stdout)
 
     def test_agent_failure_and_empty_output_fail(self):
         for settings in [{'MOCK_AGENT_EXIT': '1'}, {'MOCK_TURN': ''}, {'MOCK_TURN': '  \n'}]:

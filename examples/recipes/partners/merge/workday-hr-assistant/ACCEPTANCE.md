@@ -4,7 +4,7 @@
 # Acceptance checks
 
 The completed items below record contributor evidence from the original runs.
-They are not a claim that every case has been rerun after script changes.
+The latest second-host checks below were rerun after the verification fixes.
 
 Record actual evidence, not expected outcomes. Use synthetic data in an
 authorized test tenant. Keep credentials, one-time links, and tenant or user
@@ -48,25 +48,35 @@ a script cannot establish are listed separately.
       OpenAI-compatible provider.
 
 - [x] Rerun the corrected verification script on the second host. Result:
-      `passed=5 failed=0 skipped=3`. The agent command completed, but tool-call
-      transcript review is separate. Cross-pack access and revocation skipped.
+      `passed=6 failed=0 skipped=2`. The two skipped checks were verified
+      separately: revocation before key replacement, and agent tool use through
+      transcript inspection.
+- [x] Run the cross-pack check on the second host against another existing pack
+      outside the runtime key binding. The companion pack was no longer present.
+      Agent Handler returned HTTP 404 with JSON-RPC code `-32601` and message
+      `Resource not in API key scope.` Generic 404s do not pass this check.
+- [x] Revoke the active runtime key in the dashboard and run
+      `EXPECT_REVOKED=1 bash scripts/verify.sh` on the second host. Result:
+      `passed=1 failed=0 skipped=0`, HTTP 403. Issue a replacement with
+      `runtime:all`, one reader pack, one Registered User, and an explicit expiry;
+      register it and confirm credential resolution returns HTTP 200.
+- [x] Run teardown on the second host. Confirm removal of the native MCP
+      registration, policy preset, and credential provider, then restore with
+      `onboard.sh` and confirm credential resolution and discovery.
+- [x] Inspect the second-host agent transcript after key replacement. The agent
+      called `mcp:bundle-mcp:merge-workday__workday__list_workers`; its matching
+      tool result recorded `isError: false`. No tenant data is included here.
+- [x] Confirm second-host discovery advertises the six configured read tools and
+      `authenticate_workday`, with no additional business tools.
+
+- [x] Complete Workday reauthorization against the configured narrowed
+      application credential. The operator completed Workday sign-in and
+      confirmed connection success. Post-authorization verification returned a
+      successful live Workday read. The token's granted scopes were not
+      independently introspected.
 
 ## Outstanding
 
-- [ ] Run the cross-pack check on the second host with `OTHER_TOOL_PACK_ID` set
-      to the existing companion pack.
-- [ ] Revoke the runtime key and re-run with `EXPECT_REVOKED=1`. The Agent
-      Handler API exposes `GET`, `HEAD`, and `OPTIONS` on access keys and no
-      delete, so revocation is a dashboard action.
-- [ ] Re-authorize the Workday connection so the stored token is issued under
-      the narrowed credential. The registered application credential now scopes
-      to the four functional areas the six tools need, and reads continue to
-      succeed, but the stored authorization predates the change and was issued
-      to the previous client. Re-authorizing aligns the token with the role and
-      avoids a refresh against a client that no longer exists.
-- [ ] Run teardown on a second host. Setup is recorded on two hosts; teardown is
-      recorded only on the first, so the documented removal path is unconfirmed
-      on a host the example did not create.
 - [ ] Confirm example name, placement, and provenance with a maintainer.
 
 ## Evidence boundaries
@@ -82,8 +92,9 @@ can call `list_workers` reaches whatever that Workday account's security groups
 permit. Narrowing the Tool Pack does not narrow the account.
 
 The access token carries the functional areas granted to the Workday API client,
-which is a separate control from the Tool Pack. Both should be narrowed for a
-role; this example currently narrows one and documents the other.
+which is a separate control from the Tool Pack. The application credential is
+configured for four functional areas and the operator completed reauthorization.
+A successful read does not independently establish every grant on that token.
 
 If network exfiltration prevention enters scope later, first specify the entire
 permitted destination set, including inference and output channels, then verify

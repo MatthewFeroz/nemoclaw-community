@@ -71,7 +71,7 @@ mcp_session() {
 # Return the initialize HTTP status. Transport errors remain failures, so callers
 # cannot mistake an unreachable endpoint for an authorization denial.
 mcp_initialize_status() {
-  curl -s --max-time 30 -o /dev/null -w '%{http_code}' -X POST "$1" \
+  curl -s --max-time 30 -o "${2:-/dev/null}" -w '%{http_code}' -X POST "$1" \
     -H @- \
     -H "Content-Type: application/json" \
     -H "Accept: application/json, text/event-stream" \
