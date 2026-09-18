@@ -24,38 +24,26 @@ named role bounds what it can do there. It was contributed by
 
 ## Screenshot
 
-![Terminal output of scripts/verify.sh showing seven passing checks: the reader tool advertised and returning live data, the payment tool neither advertised nor accepted, and the runtime key unable to create a Tool Pack or address an unbound one](docs/verify-run.png)
+![Sanitized live verification output on Brev: six passes, zero failures, and two separately verified skips](docs/verification-proof.png)
 
-Historical terminal evidence from a contributor run against a live Workday
-implementation tenant, before the verification checks were tightened. Identifiers
-are replaced with placeholders. This image does not establish the outcome of the
-current script. The recorded output as searchable text:
+This screenshot formats actual output captured on the second host after the
+verification fixes. Private identifiers and paths are redacted. The result is
+`passed=6 failed=0 skipped=2`. Case 3 rejects the payment tool with
+`tool_not_found`; case 7 rejects an unbound pack with an explicit scope-denial
+response. [Full captured output](docs/verification-proof.txt).
 
-```text
-== Section A: authorization boundary (Agent Handler, scoped key) ==
-Advertised tools: 7
-  PASS  case 1: 'workday__list_workers' is advertised to this role
-  PASS  case 2: 'workday__request_one_time_payment' is not advertised to this role
-  PASS  case 3: 'workday__request_one_time_payment' refused at the authorization boundary (tool_not_found)
+![Live tool discovery, a successful Workday agent read in the transcript, and the earlier recorded revocation result](docs/runtime-proof.png)
 
-== Section B: live read ==
-  PASS  case 4: 'workday__list_workers' returned a result over MCP
-  PASS  case 4b: the agent completed a read through the sandbox
+Discovery shows the six reader tools plus `authenticate_workday`. The inspected
+agent transcript pairs a Workday read with a successful tool result. The
+revocation panel is an excerpt recorded earlier in the same session, before key
+replacement: `passed=1 failed=0 skipped=0`, HTTP 403. It is not a new revocation
+run. [Searchable evidence](docs/runtime-proof.txt).
 
-== Section D: key scope ==
-  PASS  case 6: the runtime key cannot create a Tool Pack (HTTP 403)
-  PASS  case 7: the key cannot address an unbound Tool Pack
-
-passed=7 failed=0 skipped=1
-```
-
-Notice case 3. The refusal is `tool_not_found` from the Tool Pack catalog, not a
-credential error and not a refusal the model composed. The capability does not
-exist for this role.
-
-Cases 6 and 7 check whether the runtime key can create another Tool Pack or
-address a pack outside its binding. Those permissions would let an agent bypass
-the reader pack.
+These images contain formatted command captures, not unedited terminal windows.
+Tenant records, key values, private endpoints, and identifiers are omitted. The
+older [historical screenshot](docs/verify-run.png) predates the stricter checks
+and is not evidence for the current script.
 
 ## At A Glance
 
@@ -75,6 +63,17 @@ the reader pack.
 | Confirm success | [Verification](#verification) |
 
 ## What this example does
+
+![Architecture showing the OpenClaw sandbox, OpenShell credential substitution, the Agent Handler reader Tool Pack, and Workday](docs/architecture.png)
+
+This is an architecture illustration, not execution evidence. OpenShell holds
+the Agent Handler runtime key; Agent Handler holds the Workday OAuth credential.
+The Tool Pack enforces tool availability. Permitted results can reach the
+configured inference provider and user.
+
+Created with Excalidraw+ MCP.
+[Download the editable Excalidraw scene](docs/architecture.excalidraw).
+
 
 Three components divide the work:
 

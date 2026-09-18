@@ -1,0 +1,24 @@
+Live capture on NVIDIA Brev, 2026-09-18. Private identifiers and paths redacted.
+
+Configuration loaded from private .env
+== Section A: authorization boundary (Agent Handler, scoped key) ==
+Tool Pack: <redacted>
+Registered User: <redacted>
+
+Advertised tools: 7
+  PASS  case 1: 'workday__list_workers' is advertised to this role
+  PASS  case 2: 'workday__request_one_time_payment' is not advertised to this role
+  PASS  case 3: 'workday__request_one_time_payment' refused at the authorization boundary (tool_not_found)
+
+== Section B: live read ==
+  PASS  case 4: 'workday__list_workers' returned a result over MCP
+  SKIP  case 4b: agent turn completed; inspect its tool-call transcript to confirm a Workday read
+
+== Section D: key scope ==
+  PASS  case 6: the runtime key cannot create a Tool Pack (HTTP 403)
+  PASS  case 7: the key cannot address an unbound Tool Pack (HTTP 404, explicit scope denial)
+
+== Section C: key revocation ==
+  SKIP  case 5: revoke the key in the Agent Handler dashboard, then re-run with EXPECT_REVOKED=1
+
+passed=6 failed=0 skipped=2
