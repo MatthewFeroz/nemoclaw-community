@@ -50,45 +50,4 @@ ah_mcp_url() {
     "$AH_BASE_URL" "$MERGE_AH_TOOL_PACK_ID" "$MERGE_AH_REGISTERED_USER_ID"
 }
 
-# Open an MCP session against $1 (a URL) and echo its Mcp-Session-Id.
-# Returns non-zero when initialize does not yield a session.
-mcp_session() {
-  local url="$1" headers
-  headers="$(mktemp)"
-  curl -s -o /dev/null -D "$headers" --max-time 30 -X POST "$url" \
-    -H @- \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json, text/event-stream" \
-    --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"workday-hr-verify","version":"1"}}}' \
-    2>/dev/null <<< "Authorization: Bearer $MERGE_AH_MCP_TOKEN" || true
-  local sid
-  sid="$(grep -i '^mcp-session-id:' "$headers" | awk '{print $2}' | tr -d '\r')"
-  rm -f "$headers"
-  [[ -n "$sid" ]] || return 1
-  printf '%s' "$sid"
-}
-
-# Return the initialize HTTP status. Transport errors remain failures, so callers
-# cannot mistake an unreachable endpoint for an authorization denial.
-mcp_initialize_status() {
-  curl -s --max-time 30 -o "${2:-/dev/null}" -w '%{http_code}' -X POST "$1" \
-    -H @- \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json, text/event-stream" \
-    --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"workday-hr-verify","version":"1"}}}' <<< "Authorization: Bearer $MERGE_AH_MCP_TOKEN"
-}
-
-# Call an MCP method against $1 with session $2 and raw JSON params $4.
-# Echoes the decoded JSON-RPC payload (SSE `data:` framing stripped).
-mcp_call() {
-  local url="$1" sid="$2" method="$3" params="${4:-{\}}"
-  curl -s --max-time 45 -X POST "$url" \
-    -H @- \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json, text/event-stream" \
-    -H "Mcp-Session-Id: $sid" \
-    --data "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"$method\",\"params\":$params}" \
-    2>/dev/null <<< "Authorization: Bearer $MERGE_AH_MCP_TOKEN" | sed 's/^data: //' | grep -v '^$' | tail -n 1
-}
-
 load_env

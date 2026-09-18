@@ -3,35 +3,11 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 Merge. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Issue the runtime-only access key this example needs, bound to one Tool Pack
-# and one Registered User, and record it in .env.
-#
-# WHY THIS SCRIPT EXISTS
-# The Agent Handler dashboard creates access keys but does not offer per-Tool-Pack
-# or per-Registered-User scoping; that binding is available only on the API. A key
-# created in the dashboard therefore reaches every pack and user, which is the
-# boundary this example is about, and verify.sh case 7 fails on such a key.
-#
-# SECRET HANDLING
-# The management key is read from a terminal prompt with echo disabled, so it is
-# not in argv, the environment of any other process, or shell history. It is
-# unset as soon as the request completes. The issued runtime key is written
-# straight to a mode-600 .env and never printed.
-#
-# An access key value is returned once, on the creation response. After that the
-# API exposes only a masked form, so a lost value cannot be recovered and the key
-# must be replaced.
-#
-# EXPIRY IS NOT SET HERE
-# This script does not set an expiry, because the create endpoint's expiry field
-# is not part of the documented request body this example relies on. Set an expiry
-# on the new key in the dashboard, or delete the key at teardown.
-#
-# Usage:
-#   bash scripts/issue-runtime-key.sh
-#
-# Optional:
-#   MERGE_AH_KEY_NAME  name recorded on the new key (default: workday-hr-reader-runtime)
+# Issue a runtime-only key bound to one Tool Pack and Registered User.
+# Dashboard-created keys do not support this binding. Prompt for the management
+# key without echo; pass secrets through stdin and save the result in a private
+# .env. The key value is returned only once. Set expiry in the dashboard because
+# this helper does not set it.
 
 set +x
 set -euo pipefail

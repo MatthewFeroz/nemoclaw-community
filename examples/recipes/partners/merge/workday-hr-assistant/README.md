@@ -126,9 +126,9 @@ the host of the REST API endpoint, the tenant from its final path segment, and
 the host of the authorization endpoint. The REST host and the authorization
 host are usually different values.
 
-### 2. Create the Tool Packs
+### 2. Create the reader Tool Pack
 
-This step creates two persistent Tool Packs in your Agent Handler organization.
+This step creates one persistent reader Tool Pack in your Agent Handler organization.
 Keep the management key on the trusted host. Create a private configuration file,
 then edit it to set `MERGE_AH_ADMIN_KEY`:
 
@@ -140,14 +140,11 @@ chmod 600 .env
 bash scripts/setup-packs.sh
 ```
 
-The script creates `workday-hr-reader` and `workday-hr-approver`, then re-reads
-each pack to confirm the tool filter applied. Record the reader pack identifier
-in `.env` as `MERGE_AH_TOOL_PACK_ID`. Record the other pack identifier as
-`OTHER_TOOL_PACK_ID` to exercise the cross-pack check.
-
-The second pack retains the name `workday-hr-approver` for compatibility with
-existing setups. It adds `request_time_off`, which submits a time-off request;
-it does not grant approval authority.
+The script creates `workday-hr-reader`, then re-reads the pack to confirm the
+six-tool filter applied. Record its identifier in `.env` as
+`MERGE_AH_TOOL_PACK_ID`. Set `OTHER_TOOL_PACK_ID` to another existing pack outside
+the runtime key binding to exercise the cross-pack check. Setup does not create
+a companion pack.
 
 ### 3. Link the Workday account
 
@@ -182,10 +179,14 @@ The helper does not set an expiry. Then register it:
 
 ```bash
 bash scripts/onboard.sh
-bash scripts/status.sh
+# Load configured names, including overrides from .env.
+source scripts/_lib.sh
+nemoclaw "$NEMOCLAW_SANDBOX_NAME" mcp status "$MCP_SERVER_NAME"
+nemoclaw "$NEMOCLAW_SANDBOX_NAME" mcp status "$MCP_SERVER_NAME" --tools
+nemoclaw "$NEMOCLAW_SANDBOX_NAME" policy list
 ```
 
-`status.sh` reports credential resolution, the advertised tools, and the applied
+These commands report credential resolution, the advertised tools, and the applied
 policy presets. Review the advertised list against the intended role. The six
 read tools and the
 `authenticate_workday` authentication tool are expected. Additional business
@@ -278,7 +279,7 @@ with no model involved.
 **This verifies:** executed passing cases establish that the reader tool is
 advertised and returns a result; the excluded tool is absent and its direct call
 receives an authorization refusal; and the runtime key cannot create a Tool Pack
-or address the other configured pack. `status.sh` reports managed credential
+or address the other configured pack. `nemoclaw ... mcp status` reports managed credential
 resolution separately. Confirming an agent read through the sandbox requires
 manual inspection of its tool-call transcript.
 
@@ -287,7 +288,7 @@ inside Workday; resistance to
 every prompt-injection technique; or prevention of data exfiltration through the
 inference provider or other permitted destinations. Revocation is a separate
 check with `EXPECT_REVOKED=1` after an actual revocation. Review the complete
-advertised allowlist with `status.sh`; the automated tool checks cover one
+advertised allowlist with `nemoclaw ... mcp status ... --tools`; the automated tool checks cover one
 allowed and one excluded business tool.
 
 ## Permissions and limitations
@@ -322,7 +323,7 @@ does not invalidate the key. Removal does not terminate already-open streams.
 This recipe does not create or destroy the sandbox, and leaves Workday
 application credentials in Agent Handler intact.
 
-The two Tool Packs and any `escalation-probe` pack also remain in Agent Handler.
+The reader Tool Pack and any `escalation-probe` pack also remain in Agent Handler.
 Delete them there when no other integration needs them. After revocation, remove
 local `.env` and `.env.bak` files when they are no longer needed; both can
 contain keys. Retain the Workday connection or application credentials only if

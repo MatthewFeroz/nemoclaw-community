@@ -77,6 +77,17 @@ a script cannot establish are listed separately.
       successful live Workday read. The token's granted scopes were not
       independently introspected.
 
+## Script cleanup verification
+
+After removing the status wrapper and companion-pack creation, all 11 offline
+tests passed, including reader-only setup and rejection of an incorrect persisted
+allowlist. Shell syntax, license headers, catalog validation, and diff checks passed.
+The simplified verifier ran on the second host with `passed=6 failed=0 skipped=2`.
+The matching agent tool result at `2026-09-18T18:31:25.726Z` recorded
+`workday__list_workers` with `isError: false`. Revocation was covered by regression
+tests in this pass; the earlier live revocation result above remains the evidence
+for that lifecycle step. Setup was tested offline without creating new live packs.
+
 ## Outstanding
 
 - [ ] Confirm example name, placement, and provenance with a maintainer.

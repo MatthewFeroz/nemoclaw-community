@@ -3,28 +3,9 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 Merge. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Register the scoped Agent Handler Tool Pack with an existing NemoClaw sandbox.
-#
-# Secret handling — the point of this script: the scoped key is passed to
-# `nemoclaw mcp add` through the child process environment via --env, so it
-# does not appear in the registration command arguments or shell history. The
-# host .env file stores the key and must remain private. The
-# command registers it as an OpenShell provider on the HOST. Inside the sandbox
-# the agent only ever sees the placeholder
-# `openshell:resolve:env:MERGE_AH_MCP_TOKEN`; OpenShell substitutes the real
-# value at egress, under a policy bound to the Agent Handler endpoint.
-#
-# This script does not create the sandbox and does not register Workday
-# credentials. Workday authorization lives in Agent Handler, linked to the
-# Registered User named in the URL.
-#
-# Idempotent: re-running against an existing registration is safe. NemoClaw
-# rejects a duplicate credential key, so the script removes a prior
-# registration of the same name first.
-#
-# Try after this script:
-#   $ bash scripts/status.sh
-#   $ bash scripts/verify.sh
+# Register the scoped Tool Pack with an existing sandbox. OpenShell stores the
+# runtime key on the host and substitutes it at egress; --env names the variable
+# without putting its value in argv. Replaces an existing registration.
 
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -74,4 +55,4 @@ MERGE_AH_MCP_TOKEN="$MERGE_AH_MCP_TOKEN" \
     --env MERGE_AH_MCP_TOKEN
 
 echo
-echo "Registered '$MCP_SERVER_NAME'. Next: bash scripts/status.sh"
+echo "Registered '$MCP_SERVER_NAME'. Next: review the registration with nemoclaw $NEMOCLAW_SANDBOX_NAME mcp status $MCP_SERVER_NAME --tools"

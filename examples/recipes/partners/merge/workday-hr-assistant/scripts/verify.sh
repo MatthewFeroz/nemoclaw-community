@@ -3,29 +3,10 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 Merge. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
-# Allowed/denied validation for the hr-reader role.
-#
-# WHAT THIS PROVES, AND WHERE THE BOUNDARY IS
-# The authorization boundary is the Agent Handler Tool Pack, enforced
-# server-side. It is not the model's restraint and not the OpenShell network
-# policy: OpenShell keeps the credential out of the sandbox and bounds the
-# destination, but a managed MCP registration permits every tool the server
-# advertises. Narrowing the Tool Pack is what removes a capability.
-#
-# Case 2 is the point of the example. A prompt injection can ask for
-# `request_one_time_payment` all it likes; if the pack does not contain that tool, Agent
-# Handler never advertises it and refuses the call before any Workday request.
-#
-# Cases 1-3 need only the scoped key, so they run without a linked account on
-# the connected system. Case 4 needs live authorization there and is skipped
-# (not failed) when the credential is not connected. Case 5 runs only after you
-# revoke the key.
-#
-# Section B drives a real agent turn so the sandbox path is exercised as the
-# agent would. Model behavior is non-deterministic, so an agent turn is never
-# used to establish a security property — only to show the integration works.
-#
-# Exit code: 0 if every executed case matched its expected outcome, else 1.
+# Check allowed reads, excluded tools, runtime scope, and optional revocation.
+# Agent Handler enforces tool access; OpenShell protects the runtime credential.
+# Agent text is not proof of tool use: inspect the transcript for case 4b.
+# Exit nonzero if any executed check fails; report inconclusive cases as skips.
 
 set -uo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -48,6 +29,47 @@ PASS=0; FAIL=0; SKIP=0
 ok()   { echo "  PASS  $1"; PASS=$((PASS+1)); }
 bad()  { echo "  FAIL  $1"; FAIL=$((FAIL+1)); }
 skip() { echo "  SKIP  $1"; SKIP=$((SKIP+1)); }
+
+# Open an MCP session against $1 (a URL) and echo its Mcp-Session-Id.
+# Returns non-zero when initialize does not yield a session.
+mcp_session() {
+  local url="$1" headers
+  headers="$(mktemp)"
+  curl -s -o /dev/null -D "$headers" --max-time 30 -X POST "$url" \
+    -H @- \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"workday-hr-verify","version":"1"}}}' \
+    2>/dev/null <<< "Authorization: Bearer $MERGE_AH_MCP_TOKEN" || true
+  local sid
+  sid="$(grep -i '^mcp-session-id:' "$headers" | awk '{print $2}' | tr -d '\r')"
+  rm -f "$headers"
+  [[ -n "$sid" ]] || return 1
+  printf '%s' "$sid"
+}
+
+# Return the initialize HTTP status. Transport errors remain failures, so callers
+# cannot mistake an unreachable endpoint for an authorization denial.
+mcp_initialize_status() {
+  curl -s --max-time 30 -o "${2:-/dev/null}" -w '%{http_code}' -X POST "$1" \
+    -H @- \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    --data '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"workday-hr-verify","version":"1"}}}' <<< "Authorization: Bearer $MERGE_AH_MCP_TOKEN"
+}
+
+# Call an MCP method against $1 with session $2 and raw JSON params $4.
+# Echoes the decoded JSON-RPC payload (SSE `data:` framing stripped).
+mcp_call() {
+  local url="$1" sid="$2" method="$3" params="${4:-{\}}"
+  curl -s --max-time 45 -X POST "$url" \
+    -H @- \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    -H "Mcp-Session-Id: $sid" \
+    --data "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"$method\",\"params\":$params}" \
+    2>/dev/null <<< "Authorization: Bearer $MERGE_AH_MCP_TOKEN" | sed 's/^data: //' | grep -v '^$' | tail -n 1
+}
 
 # Revocation is a separate mode: an invalid key cannot run the live cases.
 if [[ "${EXPECT_REVOKED:-0}" == "1" ]]; then
