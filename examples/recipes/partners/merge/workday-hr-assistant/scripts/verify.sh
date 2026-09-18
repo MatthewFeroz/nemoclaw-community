@@ -13,7 +13,7 @@
 # advertises. Narrowing the Tool Pack is what removes a capability.
 #
 # Case 2 is the point of the example. A prompt injection can ask for
-# `approve_report` all it likes; if the pack does not contain that tool, Agent
+# `request_one_time_payment` all it likes; if the pack does not contain that tool, Agent
 # Handler never advertises it and refuses the call before any Workday request.
 #
 # Cases 1-3 need only the scoped key, so they run without a linked account on
@@ -49,6 +49,21 @@ ok()   { echo "  PASS  $1"; PASS=$((PASS+1)); }
 bad()  { echo "  FAIL  $1"; FAIL=$((FAIL+1)); }
 skip() { echo "  SKIP  $1"; SKIP=$((SKIP+1)); }
 
+# Revocation is a separate mode: an invalid key cannot run the live cases.
+if [[ "${EXPECT_REVOKED:-0}" == "1" ]]; then
+  if HTTP_STATUS="$(mcp_initialize_status "$MCP_URL")"; then
+    case "$HTTP_STATUS" in
+      401|403) ok "case 5: the revoked key is refused (HTTP $HTTP_STATUS)" ;;
+      *) bad "case 5: expected authorization denial, got HTTP $HTTP_STATUS" ;;
+    esac
+  else
+    bad "case 5: transport failure cannot establish revocation"
+  fi
+  echo "passed=$PASS failed=$FAIL skipped=$SKIP"
+  [[ "$FAIL" -eq 0 ]]
+  exit $?
+fi
+
 # Extract the advertised tool names from a tools/list reply.
 tool_names() {
   python3 -c '
@@ -65,8 +80,11 @@ is_error_reply() {
 import json,sys
 try: d=json.load(sys.stdin)
 except Exception: print("malformed"); sys.exit(0)
+if not isinstance(d, dict): print("malformed"); sys.exit(0)
 if "error" in d: print("rpc_error"); sys.exit(0)
-r=d.get("result",{})
+r=d.get("result")
+if not isinstance(r, dict) or not isinstance(r.get("content"), list):
+    print("malformed"); sys.exit(0)
 if r.get("isError"): print("tool_error"); sys.exit(0)
 print("ok")
 '
@@ -149,12 +167,15 @@ else
   # Agent path: the same read, driven through the sandbox as the agent would.
   # Evidence of integration, never of a security property.
   if command -v nemoclaw >/dev/null && sandbox_exists "$NEMOCLAW_SANDBOX_NAME"; then
-    TURN="$(nemoclaw "$NEMOCLAW_SANDBOX_NAME" agent --agent main \
-      -m "Use the $MCP_SERVER_NAME MCP server to list workers. Reply with the first five worker names only." 2>&1)"
-    if printf '%s' "$TURN" | grep -qiE 'error|not available|cannot'; then
-      bad "case 4b: the agent turn did not complete a clean read (inspect the transcript)"
+    if TURN="$(nemoclaw "$NEMOCLAW_SANDBOX_NAME" agent --agent main \
+      -m "Use the $MCP_SERVER_NAME MCP server to list workers. Reply with the first five worker names only." 2>&1)"; then
+      if [[ -z "${TURN//[[:space:]]/}" ]] || printf '%s' "$TURN" | grep -qiE 'error|not available|cannot'; then
+        bad "case 4b: the agent returned no usable read (inspect the transcript locally)"
+      else
+        skip "case 4b: agent turn completed; inspect its tool-call transcript to confirm a Workday read"
+      fi
     else
-      ok "case 4b: the agent completed a read through the sandbox"
+      bad "case 4b: the agent command failed (inspect the transcript locally)"
     fi
   else
     skip "case 4b: sandbox '$NEMOCLAW_SANDBOX_NAME' not available for an agent turn"
@@ -169,8 +190,8 @@ echo "== Section D: key scope =="
 
 # Case 6 — the key cannot perform management operations.
 ESC="$(curl -s --max-time 25 -o /dev/null -w '%{http_code}' -X POST "$AH_BASE_URL/api/v1/tool-packs/" \
-  -H "Authorization: Bearer $MERGE_AH_MCP_TOKEN" -H "Content-Type: application/json" \
-  --data '{"name":"escalation-probe","description":"must be refused","connectors":[{"slug":"workday","tool_names":["request_one_time_payment"]}]}' 2>/dev/null || true)"
+  -H @- -H "Content-Type: application/json" \
+  --data '{"name":"escalation-probe","description":"must be refused","connectors":[{"slug":"workday","tool_names":["request_one_time_payment"]}]}' 2>/dev/null <<< "Authorization: Bearer $MERGE_AH_MCP_TOKEN" || true)"
 if [[ "$ESC" == "401" || "$ESC" == "403" ]]; then
   ok "case 6: the runtime key cannot create a Tool Pack (HTTP $ESC)"
 else
@@ -180,10 +201,13 @@ fi
 # Case 7 — the key cannot address a Tool Pack it is not bound to.
 if [[ -n "${OTHER_TOOL_PACK_ID:-}" ]]; then
   OTHER_URL="$AH_BASE_URL/api/v1/tool-packs/$OTHER_TOOL_PACK_ID/registered-users/$MERGE_AH_REGISTERED_USER_ID/mcp"
-  if mcp_session "$OTHER_URL" >/dev/null 2>&1; then
-    bad "case 7: the key opened a session on an unbound Tool Pack"
+  if HTTP_STATUS="$(mcp_initialize_status "$OTHER_URL")"; then
+    case "$HTTP_STATUS" in
+      401|403) ok "case 7: the key cannot address an unbound Tool Pack (HTTP $HTTP_STATUS)" ;;
+      *) bad "case 7: expected authorization denial, got HTTP $HTTP_STATUS" ;;
+    esac
   else
-    ok "case 7: the key cannot address an unbound Tool Pack"
+    bad "case 7: transport failure cannot establish Tool Pack isolation"
   fi
 else
   skip "case 7: set OTHER_TOOL_PACK_ID to a pack this key is not bound to"
@@ -191,17 +215,7 @@ fi
 
 echo
 echo "== Section C: key revocation =="
-# Only meaningful after you revoke the key in Agent Handler. Before revocation
-# a working session is the expected state, so this reports rather than fails.
-if [[ "${EXPECT_REVOKED:-0}" == "1" ]]; then
-  if mcp_session "$MCP_URL" >/dev/null 2>&1; then
-    bad "case 5: the revoked key still opened a session"
-  else
-    ok "case 5: the revoked key is refused"
-  fi
-else
-  skip "case 5: revoke the key in the Agent Handler dashboard (the API exposes no delete), then re-run with EXPECT_REVOKED=1"
-fi
+skip "case 5: revoke the key in the Agent Handler dashboard, then re-run with EXPECT_REVOKED=1"
 
 echo
 echo "passed=$PASS failed=$FAIL skipped=$SKIP"

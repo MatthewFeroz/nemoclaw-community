@@ -3,6 +3,9 @@
 
 # Acceptance checks
 
+The completed items below record contributor evidence from the original runs.
+They are not a claim that every case has been rerun after script changes.
+
 Record actual evidence, not expected outcomes. Use synthetic data in an
 authorized test tenant. Keep credentials, one-time links, and tenant or user
 identifiers out of public output, including screenshots.
@@ -35,15 +38,23 @@ a script cannot establish are listed separately.
       (case 7).
 - [x] Capture terminal evidence of a passing run with identifiers replaced.
 - [x] Narrow the Workday OAuth application credential to the four functional
-      areas the six tools need, so the token scope matches the Tool Pack.
+      areas the six tools need. Re-authorization of the stored token remains
+      outstanding below.
 - [x] Repeat setup on a second host, on a different operating system, processor
-      architecture, and inference provider from the first, and confirm the same
-      cases pass. Recorded on macOS 15 on Apple Silicon against an OpenAI-compatible
-      gateway, and on Ubuntu 22.04 on x86_64 against a directly configured
+      architecture, and inference provider from the first. The second-host run
+      recorded `passed=6 failed=0 skipped=2`; cross-pack access and revocation
+      were skipped. Recorded on macOS 15 on Apple Silicon against an
+      OpenAI-compatible gateway, and on Ubuntu 22.04 on x86_64 against a directly configured
       OpenAI-compatible provider.
+
+- [x] Rerun the corrected verification script on the second host. Result:
+      `passed=5 failed=0 skipped=3`. The agent command completed, but tool-call
+      transcript review is separate. Cross-pack access and revocation skipped.
 
 ## Outstanding
 
+- [ ] Run the cross-pack check on the second host with `OTHER_TOOL_PACK_ID` set
+      to the existing companion pack.
 - [ ] Revoke the runtime key and re-run with `EXPECT_REVOKED=1`. The Agent
       Handler API exposes `GET`, `HEAD`, and `OPTIONS` on access keys and no
       delete, so revocation is a dashboard action.

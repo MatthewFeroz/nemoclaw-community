@@ -6,7 +6,10 @@
 # Create the two Agent Handler Tool Packs this example contrasts:
 #
 #   workday-hr-reader    org chart and time-off, read-only
-#   workday-hr-approver  the same, plus time-off approval
+#   workday-hr-approver  the same, plus time-off request submission
+#
+# The approver name is retained for compatibility; request_time_off submits a
+# request and does not grant approval authority.
 #
 # Neither pack contains compensation, payslip, or payment tools. That absence is
 # the example's security property, so it belongs in version control where a
@@ -41,8 +44,8 @@ print(json.dumps({"name":name,"description":desc,
   "connectors":[{"slug":"workday","tool_names":tools}]}))' "$name" "$desc" "$tools")"
 
   out="$(curl -s --max-time 40 -X POST "$AH_BASE_URL/api/v1/tool-packs/" \
-    -H "Authorization: Bearer $MERGE_AH_ADMIN_KEY" \
-    -H "Content-Type: application/json" --data "$body")"
+    -H @- \
+    -H "Content-Type: application/json" --data "$body" <<< "Authorization: Bearer $MERGE_AH_ADMIN_KEY")"
 
   id="$(printf '%s' "$out" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' 2>/dev/null || true)"
   if [[ -z "$id" ]]; then
@@ -52,7 +55,7 @@ print(json.dumps({"name":name,"description":desc,
 
   # Re-read, because a silently-ignored tool filter is the failure mode here.
   got="$(curl -s --max-time 30 "$AH_BASE_URL/api/v1/tool-packs/$id/" \
-    -H "Authorization: Bearer $MERGE_AH_ADMIN_KEY" \
+    -H @- <<< "Authorization: Bearer $MERGE_AH_ADMIN_KEY" \
     | python3 -c '
 import json,sys
 d=json.load(sys.stdin)
@@ -75,7 +78,7 @@ create_pack "workday-hr-reader" \
   "Read-only Workday HR assistant: org chart and time-off. No compensation, payslips, or payments." \
   "$READER_TOOLS"
 create_pack "workday-hr-approver" \
-  "Workday HR assistant with time-off approval. Still no compensation, payslips, or payments." \
+  "Workday HR assistant with time-off request submission. No compensation, payslips, or payments." \
   "$APPROVER_TOOLS"
 
 echo

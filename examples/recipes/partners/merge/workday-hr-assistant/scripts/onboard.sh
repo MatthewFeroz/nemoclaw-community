@@ -7,7 +7,8 @@
 #
 # Secret handling — the point of this script: the scoped key is passed to
 # `nemoclaw mcp add` through the child process environment via --env, so it
-# never appears in argv, a shell history entry, or a file in the example. The
+# does not appear in the registration command arguments or shell history. The
+# host .env file stores the key and must remain private. The
 # command registers it as an OpenShell provider on the HOST. Inside the sandbox
 # the agent only ever sees the placeholder
 # `openshell:resolve:env:MERGE_AH_MCP_TOKEN`; OpenShell substitutes the real

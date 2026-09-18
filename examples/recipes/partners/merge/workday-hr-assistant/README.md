@@ -15,8 +15,8 @@
 
 An HR assistant agent answers questions about the org chart and time-off
 balances. It cannot read salaries and it cannot issue payments, because those
-tools are absent from the role's Tool Pack. The agent never holds the Workday
-credential: OpenShell keeps it on the host and substitutes it at egress.
+tools are absent from the role's Tool Pack. Agent Handler holds the Workday
+credential. OpenShell holds the Agent Handler runtime key outside the sandbox and substitutes that key at egress.
 
 This recipe is for teams who need an agent to reach a system of record while a
 named role bounds what it can do there. It was contributed by
@@ -26,8 +26,10 @@ named role bounds what it can do there. It was contributed by
 
 ![Terminal output of scripts/verify.sh showing seven passing checks: the reader tool advertised and returning live data, the payment tool neither advertised nor accepted, and the runtime key unable to create a Tool Pack or address an unbound one](docs/verify-run.png)
 
-`scripts/verify.sh` run against a live Workday implementation tenant. Identifiers
-are replaced with placeholders. The same output as searchable text:
+Historical terminal evidence from a contributor run against a live Workday
+implementation tenant, before the verification checks were tightened. Identifiers
+are replaced with placeholders. This image does not establish the outcome of the
+current script. The recorded output as searchable text:
 
 ```text
 == Section A: authorization boundary (Agent Handler, scoped key) ==
@@ -51,9 +53,9 @@ Notice case 3. The refusal is `tool_not_found` from the Tool Pack catalog, not a
 credential error and not a refusal the model composed. The capability does not
 exist for this role.
 
-Cases 6 and 7 close the obvious way around that boundary. A key that could
-create its own Tool Pack, or address a pack it was not issued for, would make
-the narrow pack decorative.
+Cases 6 and 7 check whether the runtime key can create another Tool Pack or
+address a pack outside its binding. Those permissions would let an agent bypass
+the reader pack.
 
 ## At A Glance
 
@@ -111,7 +113,7 @@ reason the sandbox cannot widen its own access.
 
 | Key | Used by | Scope |
 | --- | --- | --- |
-| Management key | `scripts/setup-packs.sh`, from trusted administration | Creates Tool Packs |
+| Management key | `scripts/setup-packs.sh` and `scripts/issue-runtime-key.sh`, from trusted administration | Creates Tool Packs and scoped runtime keys |
 | Runtime key | `scripts/onboard.sh` | `runtime:all`, bound to one Tool Pack and one Registered User |
 
 Issue the runtime key with an expiry, bound to the reader pack and the intended
@@ -128,6 +130,18 @@ the agent sees only the placeholder `openshell:resolve:env:MERGE_AH_MCP_TOKEN`.
 Workday credentials stay in Agent Handler. The sandbox never receives them.
 
 ## Setup
+
+From the repository root on the trusted NemoClaw host, enter this recipe
+directory before running its commands:
+
+```bash
+cd examples/recipes/partners/merge/workday-hr-assistant
+```
+
+The scripts require Bash, `curl`, and `python3`. Registration also requires
+`nemoclaw`, `openshell`, and an existing sandbox. Set
+`NEMOCLAW_SANDBOX_NAME` in `.env` if its name is not `merge-hr`. Use an
+authorized test tenant with synthetic people data for verification.
 
 ### 1. Register a Workday API client
 
@@ -149,20 +163,44 @@ host are usually different values.
 
 ### 2. Create the Tool Packs
 
+This step creates two persistent Tool Packs in your Agent Handler organization.
+Keep the management key on the trusted host. Create a private configuration file,
+then edit it to set `MERGE_AH_ADMIN_KEY`:
+
 ```bash
-cp .env.example .env    # then set MERGE_AH_ADMIN_KEY
+umask 077
+cp .env.example .env
+chmod 600 .env
+# Edit .env to set MERGE_AH_ADMIN_KEY before the next command.
 bash scripts/setup-packs.sh
 ```
 
 The script creates `workday-hr-reader` and `workday-hr-approver`, then re-reads
 each pack to confirm the tool filter applied. Record the reader pack identifier
-in `.env` as `MERGE_AH_TOOL_PACK_ID`.
+in `.env` as `MERGE_AH_TOOL_PACK_ID`. Record the other pack identifier as
+`OTHER_TOOL_PACK_ID` to exercise the cross-pack check.
+
+The second pack retains the name `workday-hr-approver` for compatibility with
+existing setups. It adds `request_time_off`, which submits a time-off request;
+it does not grant approval authority.
 
 ### 3. Link the Workday account
 
-Call the `authenticate_workday` tool for the Registered User to obtain a
-one-time link, then open it and sign in to Workday. Treat that link as a
-credential; it authorizes account linking for whoever opens it.
+Create or select the intended Registered User in Agent Handler, following its
+[Registered User and credential model](https://docs.merge.dev/merge-agent-handler/how-it-works).
+Record that user identifier in `.env` as `MERGE_AH_REGISTERED_USER_ID`.
+
+Use Agent Handler
+[MCP integration instructions](https://docs.merge.dev/merge-agent-handler/build/connecting-agents/mcp-integration)
+to connect a trusted MCP client to the reader pack for that Registered User. Call
+`authenticate_workday` and open the returned one-time link to sign in to Workday.
+Treat that link as a credential; it authorizes account linking for whoever opens
+it. Keep management credentials out of the agent sandbox. The next step creates
+the runtime key used by the sandbox.
+
+If you replaced an existing Workday API client to narrow its functional areas,
+re-authorize the connection. Changing the application credential does not narrow
+an already-issued access token.
 
 ### 4. Register the Tool Pack with the sandbox
 
@@ -172,43 +210,70 @@ it on the API; the script records the value in `.env` without printing it:
 
 ```bash
 bash scripts/issue-runtime-key.sh
+```
+
+Set an expiry on the new key in the Agent Handler dashboard before registration.
+The helper does not set an expiry. Then register it:
+
+```bash
 bash scripts/onboard.sh
 bash scripts/status.sh
 ```
 
 `status.sh` reports credential resolution, the advertised tools, and the applied
-policy presets. Review the advertised list against the intended role; anything
-beyond the six read tools means the Tool Pack is wider than this example
-describes.
+policy presets. Review the advertised list against the intended role. The six
+read tools and the
+`authenticate_workday` authentication tool are expected. Additional business
+tools mean the Tool Pack is wider than this recipe describes.
 
 ## Verification
 
-**Evidence level:** live end-to-end
+**Evidence level:** live end-to-end for the recorded integration runs. Current
+script checks were rerun on the second host after review fixes, with
+`passed=5 failed=0 skipped=3`. The direct read and payment-tool denial passed.
+The agent command completed but requires transcript review; cross-pack access
+and revocation were not exercised because the companion pack identifier was
+unset and the runtime key remains active.
+
+The verification script reads Workday data and sends tool results to the
+configured inference provider. Case 6 attempts to create an `escalation-probe`
+Tool Pack containing a payment tool. A correctly scoped runtime key must reject
+that request. If the key has management permissions, the probe can create a
+persistent pack; remove it in Agent Handler and replace the overprivileged key.
 
 ```bash
 bash scripts/verify.sh
 ```
 
-**Expected result:**
+**Expected result:** with a linked account, an available sandbox, and an existing
+`OTHER_TOOL_PACK_ID` outside the runtime key binding. Authorization refusals may
+report HTTP 401 instead of 403.
 
 ```text
   PASS  case 1: 'workday__list_workers' is advertised to this role
   PASS  case 2: 'workday__request_one_time_payment' is not advertised to this role
   PASS  case 3: 'workday__request_one_time_payment' refused at the authorization boundary (tool_not_found)
   PASS  case 4: 'workday__list_workers' returned a result over MCP
-  PASS  case 4b: the agent completed a read through the sandbox
+  SKIP  case 4b: agent turn completed; inspect its tool-call transcript to confirm a Workday read
   PASS  case 6: the runtime key cannot create a Tool Pack (HTTP 403)
-  PASS  case 7: the key cannot address an unbound Tool Pack
+  PASS  case 7: the key cannot address an unbound Tool Pack (HTTP 403)
 
-passed=7 failed=0 skipped=1
+passed=6 failed=0 skipped=2
 ```
 
 Set `OTHER_TOOL_PACK_ID` to a pack the key is not bound to so case 7 runs rather
 than skipping. Case 5 needs an actual revocation; the Agent Handler API exposes
 no delete for access keys, so revoke in the dashboard and re-run with
-`EXPECT_REVOKED=1`.
+`EXPECT_REVOKED=1`. That mode runs only the revocation check, with an expected
+result of `passed=1 failed=0 skipped=0` after an explicit authorization denial.
+Network errors or unexpected responses fail the check.
 
 The script exits non-zero if any executed case misses its expected outcome.
+Case 4b reports a skip after a successful agent command because command success
+and answer text cannot establish that a tool was called. Inspect the agent
+session transcript locally for the `merge-workday` tool call and its successful
+result before recording an end-to-end read. Do not publish tenant data from that
+transcript.
 
 A role boundary can also be observed directly. Ask the agent to use an excluded
 tool, and require it to report what it looked for rather than decline on its own
@@ -239,14 +304,16 @@ rather than the role boundary. Treat an agent turn as illustration; `verify.sh`
 case 3 is the reproducible evidence, because it calls the excluded tool over MCP
 with no model involved.
 
-**This verifies:** the reader tool is advertised and returns live tenant data;
-the excluded tool is neither advertised nor accepted, and its refusal is an
-authorization decision rather than a credential failure; the credential resolves
-on the wire without entering the sandbox; the agent completes a read through the
-sandbox using the registered inference route; and the runtime key can neither
-create a Tool Pack nor address a pack it was not issued for.
+**This verifies:** executed passing cases establish that the reader tool is
+advertised and returns a result; the excluded tool is absent and its direct call
+receives an authorization refusal; and the runtime key cannot create a Tool Pack
+or address the other configured pack. `status.sh` reports managed credential
+resolution separately. Confirming an agent read through the sandbox requires
+manual inspection of its tool-call transcript.
 
-**This does not verify:** record-level isolation inside Workday; resistance to
+**This does not verify:** the complete advertised tool allowlist, which must be
+reviewed using `status.sh`; cross-Registered-User denial; record-level isolation
+inside Workday; resistance to
 every prompt-injection technique; prevention of data exfiltration through the
 inference provider or other permitted destinations; or behavior after key
 revocation, which `verify.sh` reports only when `EXPECT_REVOKED=1` is set after
@@ -271,6 +338,10 @@ an actual revocation.
 
 ## Teardown
 
+This removes the MCP registration and its OpenShell provider, interrupting new
+tool calls through that registration. It does not revoke the runtime key or
+terminate already-open streams.
+
 ```bash
 bash scripts/teardown.sh
 ```
@@ -279,6 +350,13 @@ Revoke the runtime key in Agent Handler afterward; removing the registration
 does not invalidate the key. Removal does not terminate already-open streams.
 This recipe does not create or destroy the sandbox, and leaves Workday
 application credentials in Agent Handler intact.
+
+The two Tool Packs and any `escalation-probe` pack also remain in Agent Handler.
+Delete them there when no other integration needs them. After revocation, remove
+local `.env` and `.env.bak` files when they are no longer needed; both can
+contain keys. Retain the Workday connection or application credentials only if
+other integrations need them. Deleting application credentials can affect other
+Tool Packs, as described below.
 
 ## Known limitations
 

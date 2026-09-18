@@ -25,13 +25,13 @@ if ! sandbox_exists "$NEMOCLAW_SANDBOX_NAME"; then
   exit 0
 fi
 
-run nemoclaw "$NEMOCLAW_SANDBOX_NAME" mcp remove "$MCP_SERVER_NAME" --force || true
+run nemoclaw "$NEMOCLAW_SANDBOX_NAME" mcp remove "$MCP_SERVER_NAME" --force
 
 # `mcp remove` deliberately preserves the provider. Remove it explicitly so a
 # later re-registration is not blocked by retained partial state.
-run nemoclaw credentials reset "${NEMOCLAW_SANDBOX_NAME}-mcp-${MCP_SERVER_NAME}" --yes || true
+run nemoclaw credentials reset "${NEMOCLAW_SANDBOX_NAME}-mcp-${MCP_SERVER_NAME}" --yes
 
 echo
 echo "Removed '$MCP_SERVER_NAME' from sandbox '$NEMOCLAW_SANDBOX_NAME'."
 echo "Now revoke the scoped runtime key in Agent Handler, then confirm with:"
-echo "  bash scripts/verify.sh   # the revocation case must fail the call"
+echo "  EXPECT_REVOKED=1 bash scripts/verify.sh"

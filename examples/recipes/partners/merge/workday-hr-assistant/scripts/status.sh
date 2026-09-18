@@ -40,4 +40,4 @@ run nemoclaw "$NEMOCLAW_SANDBOX_NAME" policy list || true
 
 echo
 echo "Review the advertised tool list above against the intended role."
-echo "Anything beyond the hr-reader tools means the Tool Pack is too wide."
+echo "Expected: the six hr-reader tools plus authenticate_workday. Additional business tools mean the Tool Pack is too wide."
