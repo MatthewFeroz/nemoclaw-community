@@ -88,6 +88,21 @@ The matching agent tool result at `2026-09-18T18:31:25.726Z` recorded
 tests in this pass; the earlier live revocation result above remains the evidence
 for that lifecycle step. Setup was tested offline without creating new live packs.
 
+## Review fixes
+
+The explanatory component row is named `OpenShell boundary` so catalog parsing
+uses only the version row. Key creation now sends `expires_in=3600` by default,
+with a positive `MERGE_AH_KEY_TTL_SECONDS` override. Both setup scripts prompt
+for the management key; issuance scrubs legacy assignments from `.env` and
+`.env.bak` before making the request.
+
+After merging upstream main at `d26b655`, all 74 repository Python tests,
+14 JavaScript tests, and 14 recipe tests passed. Recipe tests cover default and
+custom expiry, invalid TTL rejection, and management-key removal from both files,
+including the API-failure path. License headers, catalog metadata and generated
+sources, label taxonomy, shell syntax, and diff checks passed. These issuance
+checks use mocked API requests; no live runtime key was replaced for this review.
+
 ## Outstanding
 
 - [ ] Confirm example name, placement, and provenance with a maintainer.
